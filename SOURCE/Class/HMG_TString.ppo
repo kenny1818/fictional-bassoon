@@ -1,0 +1,64 @@
+#line 74 "include\minigui.ch"
+EXTERNAL ERRORSYS
+#line 26 "source\class\HMG_TString.prg"
+_HB_CLASS HMG_TGeneral ; function HMG_TGeneral ( ... ) ; STATIC s_oClass ; LOCAL nScope, oClass, oInstance ; IF s_oClass == NIL .AND. __clsLockDef( @s_oClass ) ; BEGIN SEQUENCE ; nScope := 1 ; ( ( nScope ) ) ; oClass := iif( .F.,, HBClass():new( "HMG_TGeneral", iif( .F., { }, { @HBObject() } ), @HMG_TGeneral() ) ) ;
+
+   _HB_MEMBER { AS USUAL cargo } ; oClass:AddMultiData( "USUAL", Nil, 1 + iif( .F., 16, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ), {"cargo"}, .F. )
+oClass:Create() ; ; ALWAYS ; __clsUnlockDef( @s_oClass, oClass ) ; end ; oInstance := oClass:Instance() ; IF __objHasMsg( oInstance, "InitClass" ) ; oInstance:InitClass( ... ) ; END ; RETURN oInstance ; END ; RETURN s_oClass:Instance() AS CLASS HMG_TGeneral ;
+
+
+
+_HB_CLASS HMG_TString ; function HMG_TString ( ... ) ; STATIC s_oClass ; LOCAL nScope, oClass, oInstance ; IF s_oClass == NIL .AND. __clsLockDef( @s_oClass ) ; BEGIN SEQUENCE ; nScope := 1 ; ( ( nScope ) ) ; oClass := iif( .F.,, HBClass():new( "HMG_TString", iif( .T., { @HMG_TGeneral() }, { @HBObject() } ), @HMG_TString() ) ) ;
+
+   nScope := 1 ; ( ( nScope ) )
+
+      _HB_MEMBER New(); oClass:AddInline( "New", {|Self | ( ( Self ) ), ( Self ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+      _HB_MEMBER Chr(); oClass:AddInline( "Chr", {|Self, nCode | ( ( Self ) ), HB_UCHAR( nCode ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Char(); oClass:AddInline( "Char", {|Self, nCode | ( ( Self ) ), HB_UCHAR( nCode ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Asc(); oClass:AddInline( "Asc", {|Self, cString | ( ( Self ) ), HB_UCODE( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Code(); oClass:AddInline( "Code", {|Self, cString | ( ( Self ) ), HB_UCODE( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Len(); oClass:AddInline( "Len", {|Self, cString | ( ( Self ) ), HB_ULEN( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER ByteLen(); oClass:AddInline( "ByteLen", {|Self, cString | ( ( Self ) ), HB_BLEN( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Peek(); oClass:AddInline( "Peek", {|Self, cString, n | ( ( Self ) ), HB_UPEEK( cString, n ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Poke(); oClass:AddInline( "Poke", {|Self, cString, n, nVal | ( ( Self ) ), HB_UPOKE( cString, n, nVal ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER SubStr(); oClass:AddInline( "SubStr", {|Self, cString, nStart, nCount | ( ( Self ) ), HB_USUBSTR( cString, nStart, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Left(); oClass:AddInline( "Left", {|Self, cString, nCount | ( ( Self ) ), HB_ULEFT( cString, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Right(); oClass:AddInline( "Right", {|Self, cString, nCount | ( ( Self ) ), HB_URIGHT( cString, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER At(); oClass:AddInline( "At", {|Self, cSubString, cString, nFrom, nTo | ( ( Self ) ), HB_UAT( cSubString, cString, nFrom, nTo ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Rat(); oClass:AddInline( "Rat", {|Self, cSearch, cTarget | ( ( Self ) ), HB_UTF8RAT( cSearch, cTarget ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Stuff(); oClass:AddInline( "Stuff", {|Self, cString, nStart, nDelete, cInsert | ( ( Self ) ), HB_UTF8STUFF( cString, nStart, nDelete, cInsert ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+      _HB_MEMBER BLen(); oClass:AddInline( "BLen", {|Self, cString | ( ( Self ) ), HB_BLEN( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER BLeft(); oClass:AddInline( "BLeft", {|Self, cString, nCount | ( ( Self ) ), HB_BLEFT( cString, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER BRight(); oClass:AddInline( "BRight", {|Self, cString, nCount | ( ( Self ) ), HB_BRIGHT( cString, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER BSubStr(); oClass:AddInline( "BSubStr", {|Self, cString, nStart, nCount | ( ( Self ) ), HB_BSUBSTR( cString, nStart, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+      _HB_MEMBER LTrim(); oClass:AddInline( "LTrim", {|Self, cString | ( ( Self ) ), LTRIM( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER RTrim(); oClass:AddInline( "RTrim", {|Self, cString | ( ( Self ) ), RTRIM( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER AllTrim(); oClass:AddInline( "AllTrim", {|Self, cString | ( ( Self ) ), ALLTRIM( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER StrTran(); oClass:AddInline( "StrTran", {|Self, cString, cSearch, cReplace, nStart, nCount | ( ( Self ) ), HB_UTF8STRTRAN( cString, cSearch, cReplace, nStart, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Replicate(); oClass:AddInline( "Replicate", {|Self, cString, nCount | ( ( Self ) ), REPLICATE( cString, nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Space(); oClass:AddInline( "Space", {|Self, nCount | ( ( Self ) ), SPACE( nCount ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+      _HB_MEMBER StrToUTF8(); oClass:AddInline( "StrToUTF8", {|Self, cStr, cCPID | ( ( Self ) ), HB_STRTOUTF8( cStr, cCPID ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER UTF8ToStr(); oClass:AddInline( "UTF8ToStr", {|Self, cUTF8Str, cCPID | ( ( Self ) ), HB_UTF8TOSTR( cUTF8Str, cCPID ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER IsUTF8(); oClass:AddInline( "IsUTF8", {|Self, cString | ( ( Self ) ), HMG_ISUTF8( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+      _HB_MEMBER EOL(); oClass:AddInline( "EOL", {|Self | ( ( Self ) ), HB_EOL() }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER OsNewLine(); oClass:AddInline( "OsNewLine", {|Self | ( ( Self ) ), HB_OSNEWLINE() }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+      _HB_MEMBER Lower(); oClass:AddInline( "Lower", {|Self, cString | ( ( Self ) ), HMG_LOWER( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER Upper(); oClass:AddInline( "Upper", {|Self, cString | ( ( Self ) ), HMG_UPPER( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER PadC(); oClass:AddInline( "PadC", {|Self, cString, nLength, cFillChar | ( ( Self ) ), HMG_PADC( cString, nLength, cFillChar ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER PadL(); oClass:AddInline( "PadL", {|Self, cString, nLength, cFillChar | ( ( Self ) ), HMG_PADL( cString, nLength, cFillChar ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER PadR(); oClass:AddInline( "PadR", {|Self, cString, nLength, cFillChar | ( ( Self ) ), HMG_PADR( cString, nLength, cFillChar ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER IsAlpha(); oClass:AddInline( "IsAlpha", {|Self, cString | ( ( Self ) ), HMG_ISALPHA( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER IsDigit(); oClass:AddInline( "IsDigit", {|Self, cString | ( ( Self ) ), HMG_ISDIGIT( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER IsLower(); oClass:AddInline( "IsLower", {|Self, cString | ( ( Self ) ), HMG_ISLOWER( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER IsUpper(); oClass:AddInline( "IsUpper", {|Self, cString | ( ( Self ) ), HMG_ISUPPER( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER IsAlphaNumeric(); oClass:AddInline( "IsAlphaNumeric", {|Self, cString | ( ( Self ) ), HMG_ISALPHANUMERIC( cString ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+      _HB_MEMBER StrCmp(); oClass:AddInline( "StrCmp", {|Self, cString1, cString2, lCaseSensitive | ( ( Self ) ), HMG_StrCmp( cString1, cString2, lCaseSensitive ) }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+oClass:Create() ; ; ALWAYS ; __clsUnlockDef( @s_oClass, oClass ) ; end ; oInstance := oClass:Instance() ; IF __objHasMsg( oInstance, "InitClass" ) ; oInstance:InitClass( ... ) ; END ; RETURN oInstance ; END ; RETURN s_oClass:Instance() AS CLASS HMG_TString ;

@@ -1,0 +1,1575 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+MEMVAR _HMG_SYSDATA, _HMG_MainWindowFirst
+#line 74 "include\minigui.ch"
+EXTERNAL ERRORSYS
+#line 58 "source\debugger\dbgGUI.prg"
+THREAD STATIC aDebuggerForms := {}
+THREAD STATIC nCurrentLineCode := 0
+THREAD STATIC aRawVars := {}
+THREAD STATIC aGrid_SourceCode := {}
+THREAD STATIC nBtnOption := 0
+THREAD STATIC nComboBoxValue := 1
+THREAD STATIC lShowSplitBox := .T.
+THREAD STATIC hMainMenu := 0
+
+
+;;;;;;;;;;;;
+
+
+PROCEDURE InitGUICodeBlocks
+
+   HMG_Debugger():bGUIReleaseFormDebugger := {|| ProcInitGUIDebugger (.F.) }
+   HMG_Debugger():bGUIDoEvents            := {|| DoEvents() }
+   HMG_Debugger():bGUIReleaseAllWindows   := {|| ReleaseAllWindows() }
+   HMG_Debugger():bGUIMessageBox          := {|...| DebuggerMessageBox( ... ) }
+   HMG_Debugger():bGUIUpdateInfo          := {|| UpdateInfo() }
+RETURN
+
+
+FUNCTION DebuggerMessageBox( ... )
+LOCAL i, nRet, cText := ""
+   FOR i = 1 TO PCount()
+       cText := cText + Iif( ValType( PValue( i ) ) == "A", hb_ValToExp( PValue( i ) ), hb_ValToStr( PValue( i ) ) ) + Space( 1 )
+   NEXT
+   nRet := MessageBoxIndirect( NIL, cText, "HMG Debugger", hb_bitOR( 4096, 1 ), "_dbgIcon" )
+   IF nRet == 2
+      IF MsgYesNo ( "Are you sure you want to EXIT the program ?", "HMG Debugger" ) == .T.
+         ReleaseAllWindows()
+      ENDIF
+   ENDIF
+RETURN nRet
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PROCEDURE ProcInitGUIDebugger( lCreate )
+
+THREAD STATIC nEventIndex := 0
+LOCAL i, bBackColor, bForeColor, cGrid_SourceCode
+LOCAL aFiles, lOldMainFirst
+
+   IF ValType( lCreate ) == "L" .AND. lCreate == .F. .AND. _IsWindowDefined ( "_HMG_FormDebugger" ) == .T.
+      EventRemove( nEventIndex )
+      DoMethod ( "_HMG_FormDebugger", "Release" )
+      nEventIndex := 0
+      RETURN
+   ENDIF
+
+   IF ! _IsWindowDefined ( "_HMG_FormDebugger" )
+
+      InitGUICodeBlocks()
+
+      lOldMainFirst := HMG_ActivateMainWindowFirst( .F. )
+
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + "( DEFINE WINDOW )" )
+
+      _HMG_SYSDATA [ 342 ] := "Calibri" ; _HMG_SYSDATA [ 343 ] := 11
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;;;;;;;;;;;; ; _dummy() ; ; _DefineWindow ( "_HMG_FormDebugger", "HMG Debugger   ( Ctrl+H - Help )", 0, 0, 0, 0, .F., .F., .F., .F., .F.,.F., "",{|| AjustControlSize()}, {|| DeleteDbgForm( "_HMG_FormDebugger" )} ,, {|| ( Iif( GetProperty ( _HMG_SYSDATA [ 316 ] , "WIDTH" ) < 650,   SetProperty ( _HMG_SYSDATA [ 316 ] , "WIDTH" , 650 ),  NIL ), Iif( GetProperty ( _HMG_SYSDATA [ 316 ] , "HEIGHT" ) < 550, SetProperty ( _HMG_SYSDATA [ 316 ] , "HEIGHT" , 550 ), NIL ), AjustControlSize() )} , ,, , , .F. , .F. , .F. , , .F. , ,, , , ,, , , , , , , , , , .F. , {|| AjustControlSize()} , , , .F. , {|| .F.} , , , , , , , , , .F. )
+
+         _DefineHotKey ( , 0 , 13 , {|| OnKeyPress( 13 )} )
+         _DefineHotKey ( , 0 , 46 , {|| OnKeyPress( 46 )} )
+         _DefineHotKey ( , 0 , 0x1B , {|| OnKeyPress( 0x1B )} )
+
+         _DefineHotKey ( , 2 , 72 , {||  HotKeyHelp()} )
+
+         _DefineHotKey ( , 0 , 0x7A , {||  ShowHideSplitBox()} )
+
+         _DefineHotKey ( , 0 , 0x72 , {||  MenuOption( 1 )} )
+         _DefineHotKey ( , 0 , 0x77 , {||  MenuOption( 2 )} )
+         _DefineHotKey ( , 0 , 0x79 , {||  MenuOption( 3 )} )
+         _DefineHotKey ( , 0 , 0x74 , {||  MenuOption( 4 )} )
+         _DefineHotKey ( , 0 , 0x76 , {||  MenuOption( 5 )} )
+         _DefineHotKey ( , 2 , 0x74 , {||  MenuOption( 6 )} )
+         _DefineHotKey ( , 2 , 0x72 , {||  MenuOption( 7 )} )
+         _DefineHotKey ( , 0 , 0x78 , {||  MenuOption( 8 )} )
+         _DefineHotKey ( , 1 , 88 , {||  MenuOption( 12 )} )
+
+         _DefineMainMenu( )
+            _DefineMenuPopup( "Run" , )
+                  _DefineMenuItem ( "&Animate"        +Chr( 9 )+"F3" , {||  MenuOption( 1 )} , "Menu_Animate" , , .T. , .F. , "Run in Animate mode" )
+                  _DefineMenuItem ( "&Step"           +Chr( 9 )+"F8" , {||  MenuOption( 2 )} , "Menu_Step" , , .T. , .F. , "Run in Single Step mode" )
+                  _DefineMenuItem ( "T&race"          +Chr( 9 )+"F10" , {||  MenuOption( 3 )} , "Menu_Trace" , , .T. , .F. , "Run in Trace mode" )
+                  _DefineMenuItem ( "&Go"             +Chr( 9 )+"F5" , {||  MenuOption( 4 )} , "Menu_Go" , , .T. , .F. , "Run in Go mode" )
+                  _DefineMenuItem ( "To &Cursor"      +Chr( 9 )+"F7" , {||  MenuOption( 5 )} , "Menu_ToCursor" , , .T. , .F. , "Run until current Cursor Position" )
+                  _DefineMenuItem ( "&Next Routine"   +Chr( 9 )+"Ctrl+F5" , {||  MenuOption( 6 )} , "Menu_Next" , , .T. , .F. , "Run until Next Routine" )
+                  _DefineSeparator ()
+                  _DefineMenuItem ( "&Pause"          +Chr( 9 )+"Ctrl+F3" , {||  MenuOption( 7 )} , "Menu_Pause" , , .T. , .F. , "Pause any run mode" )
+            _EndMenuPopup()
+
+            _DefineMenuPopup( "Point" , )
+                  _DefineMenuItem ( "&BreakPoint"     +Chr( 9 )+"F9" , {||  MenuOption( 8 )} , , , .F. , .F. , "Toggle BreakPoint" )
+                  _DefineMenuItem ( "&TracePoint" , {||  MenuOption( 9 )} , , , .F. , .F. , "Add TracePoint" )
+                  _DefineMenuItem ( "&WatchPoint" , {||  MenuOption( 10 )} , , , .F. , .F. , "Add WatchPoint" )
+            _EndMenuPopup()
+
+            _DefineMenuPopup( "Setting" , )
+                  _DefineMenuItem ( "S&etting" , {||  MenuOption( 11 )} , "Menu_Setting" , , .T. , .F. , "Enable/Disable Setting" )
+            _EndMenuPopup()
+
+            _DefineMenuPopup( "Quit" , )
+                  _DefineMenuItem ( "&Quit" , {||  MenuOption( 12 )} , , , .F. , .F. , "Exit the debugger and closing the application" )
+            _EndMenuPopup()
+         _EndMenu()
+
+
+         _DefineSplitBox( , .F. , .F. )
+
+            _DefineToolBar ( "ToolBar_1" , , 85 , 85 , .T. , .F. , .F. , .F. , , , .F. , .F. , .F. , .F. , , , .F. , 64 , 64 , .T. )
+               _DefineToolButton ( "Button_1" , "_animate" , "&Animate" , {|| MenuOption( 1 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Run in Animate mode", .F. )
+               _DefineToolButton ( "Button_2" , "_step" , "&Step" , {|| MenuOption( 2 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Run in Single Step mode", .F. )
+               _DefineToolButton ( "Button_3" , "_trace" , "T&race" , {|| MenuOption( 3 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Run in Trace mode", .F. )
+               _DefineToolButton ( "Button_4" , "_go" , "&Go" , {|| MenuOption( 4 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Run in Go mode", .F. )
+               _DefineToolButton ( "Button_5" , "_tocursor" , "To &Cursor" , {|| MenuOption( 5 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Run until current Cursor Position", .F. )
+               _DefineToolButton ( "Button_6" , "_next" , "&Next Routine" , {|| MenuOption( 6 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Run until Next Routine", .F. )
+               _DefineToolButton ( "Button_7" , "_pause" , "&Pause" , {|| MenuOption( 7 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Pause any run mode", .F. )
+            _EndToolbar()
+
+            _DefineToolBar ( "ToolBar_2" , , 85 , 85 , .T. , .F. , .F. , .F. , , , .F. , .F. , .F. , .F. , , , .F. , 64 , 64 , .T. )
+               _DefineToolButton ( "Button_8" , "_breakpoint" , "&BreakPoint" , {|| MenuOption( 8 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Toggle BreakPoint", .F. )
+               _DefineToolButton ( "Button_9" , "_tracepoint" , "&TracePoint" , {|| MenuOption( 9 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Add TracePoint", .F. )
+
+               _DefineToolButton ( "Button_10" , "_watchpoint" , "&WatchPoint" , {|| MenuOption( 10 )} , .T. , .F. , .F. , .F. , .F. , .F. , "Add WatchPoint", .F. )
+
+
+               _DefineToolButton ( "Button_11" , "_configuration" , "S&etting" , {|| MenuOption( 11 )} , .T. , .F. , .T. , .F. , .F. , .F. , "Enable/Disable Setting", .F. )
+               _DefineToolButton ( "Button_12" , "_quit" , "&Quit" , {|| MenuOption( 12 )} , .F. , .F. , .F. , .F. , .F. , .F. , "Exit the debugger and closing the application", .F. )
+            _EndToolbar()
+
+         _EndSplitBox()
+
+         _DefineLabel ( "Label_1",, GetSystemMetrics( 2 ), 0, "",,,,, .F., .F. , .F. , .F. , .F. , .F. ,,,,,, .F., .F., .F., .F. , .T. , .F. , .F., .F., .F. )
+         _DefineMixedButton ( "Button_Refresh",, 0, 0, "Refresh", {|| UpdateGrids()}, 100, 30, "Calibri", 10, "Refresh Grid Data",,, .F., .F.,, .F. , .T., .T., .F., .F., "_refresh" , "LEFT" , .F., .F. )
+
+
+
+
+
+
+         _BeginTab( "Tab_1" , , 0 , 0 , 0 , 0 , , , , , {||  UpdateGrids()} , .F. , .F. , .F. , .F., .F. ,.T., .T., .F., .F. , .F. , .F. )
+
+            _BeginTabPage ( "Source" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Source" )' )
+
+
+
+               _DefineCombo ( "ComboBox_SourceCode",, 0, 0,, HMG_Debugger():GetSourceFiles() , 1, "Arial", 10,, {|| UpdateGrids()},, {||  ( nComboBoxValue := GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" ) )},,,, .F., .F., .F. ,.F., .F., .F., .F. , {} , , .F. , , .F. , "" , , , , ,, .F. )
+
+               bBackColor := {|| IIF ( _HMG_SYSDATA [ 195 ] == nCurrentLineCode .AND. aGrid_SourceCode[ nComboBoxValue ][2], { 255 , 236 , 139 }, NIL ) }
+
+               aFiles := HMG_Debugger():GetSourceFiles()
+
+               FOR i := 1 TO Len( aFiles )
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Source" ) >>> ' + aFiles[ i ] )
+                  cGrid_SourceCode := "Grid_SourceCode_" + hb_ntos( i )
+                  AAdd( aGrid_SourceCode, { cGrid_SourceCode, .F., aFiles[ i ] } )
+
+
+
+
+
+
+
+
+
+
+
+                  _DefineGrid ( cGrid_SourceCode , , 0 , 0 , 0 , 0 , {"Line","Source Code"} , { 0, 0 } , , , "Arial" , 10 , , , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 100 , 0 } , .F. , , { bBackColor, bBackColor } , { {|| GetForeColorSourceCode() }, {|| GetForeColorSourceCode() } } , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+                     SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "ColumnDYNAMICFONT", 1, {|| GetFontSourceCode() } )
+                     SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "ColumnDYNAMICFONT", 2, {|| GetFontSourceCode() } )
+
+                     SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "Image", .T., {"_pointer"} )
+                     SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "PaintDoubleBuffer", .T. )
+
+                     LoadPrg( aGrid_SourceCode[i][1], aFiles[i] )
+               NEXT
+
+            _EndTabPage()
+
+            _BeginTabPage ( "Stack" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Stack" )' )
+               bForeColor := {|| IIF ( Empty(GetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "CELL" , _HMG_SYSDATA [ 195 ] , 2 )), { 0 , 100 , 0 }, NIL ) }
+
+
+
+
+
+
+
+
+
+
+
+               _DefineGrid ( "Grid_CallStack" , , 0 , 0 , 0 , 0 , { "Level", "File", "Function", "Line" } , { 80, 150, 300, 100 } , , , "Arial" , 10 , "Press ENTER to see the source code" , , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 0 , 128 } , .F. , , , { bForeColor, bForeColor, bForeColor, bForeColor } , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+                  SetProperty ( "_HMG_FormDebugger", "Grid_CallStack", "PaintDoubleBuffer" , .T. )
+            _EndTabPage()
+
+            _BeginTabPage ( "Watch" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Watch" )' )
+
+
+
+
+
+
+
+
+
+
+               _DefineGrid ( "Grid_Watch" , , 0 , 0 , 0 , 0 , { "Number", "Type", "Expression", "ValType", "Value", "ValidExpr" } , { 0, 0, 0, 100, 100, 100 } , , , "Arial" , 10 , "Press ENTER to edit the expression and press DELETE to delete item" , , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 0 , 128 } , .F. , , , { {||GetForeColorWatch()}, {||GetForeColorWatch()}, {||GetForeColorWatch()}, {||GetForeColorWatch()}, {||GetForeColorWatch()}, {||GetForeColorWatch()} } , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+                  SetProperty ( "_HMG_FormDebugger", "Grid_Watch", "PaintDoubleBuffer" , .T. )
+
+
+               _DefineLabel ( "Label_WatchNro",, 0, 0, "",,, "Arial", 10, .T., .F. , .F. , .F. , .F. , .F. , { 220 , 220 , 220 }, { 139 , 69 , 19 },, "Watch number",, .F., .T., .F., .F. , .F. , .F. , .F., .F., .F. )
+               HMG_ChangeWindowStyle (GetControlHandle ("Label_WatchNro", "_HMG_FormDebugger"), 512, NIL, .T.)
+               SetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "WIDTH" , GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "WIDTH" ) / 2 )
+
+
+               _DefineLabel ( "Label_WatchType",, 0, 0, "",,, "Arial", 10, .T., .F. , .F. , .F. , .F. , .F. , { 220 , 220 , 220 }, { 139 , 69 , 19 },, "Watch type",, .F., .T., .F., .F. , .F. , .F. , .F., .F., .F. )
+               HMG_ChangeWindowStyle (GetControlHandle ("Label_WatchType", "_HMG_FormDebugger"), 512, NIL, .T.)
+
+
+               _DefineTextBox( "TextBox_Watch",, 0, 0,,, "", "Arial", 10, "Watch expression",, .F., .F., .F., .F.,,,,, .F.,, .F. ,.T., .F., .F., .F. , , { 255 , 231 , 186 } , { 139 , 69 , 19 } , .F. , .F. , , )
+               SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "Enabled" , .F. )
+
+               SetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "ColumnWIDTH" , 1, GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "WIDTH" )  + GetSystemMetrics( 2 ) / 2 )
+               SetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "ColumnWIDTH" , 2, GetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "WIDTH" ) + GetSystemMetrics( 2 ) / 2 )
+               SetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "ColumnWIDTH" , 3, 350 )
+
+            _EndTabPage()
+
+            _BeginTabPage ( "Evaluate" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Evaluate" )' )
+
+
+
+
+
+
+
+
+
+               _DefineGrid ( "Grid_Calc" , , 0 , 0 , 0 , 0 , { "Expression", "Value" } , { 650 / 2, 650 / 3 } , , , "Arial" , 10 , "Press ENTER to copy expression for evaluate and press DELETE to delete item" , , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 0 , 128 } , .F. , , , , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+                  SetProperty ( "_HMG_FormDebugger", "Grid_Calc", "PaintDoubleBuffer" , .T. )
+
+
+
+
+               _DefineLabel ( "Label_Calc",, 0, 0, "Enter the expression to evaluate:",,, "Arial", 10, .T., .F. , .F. , .F. , .F. , .F. ,, { 139 , 69 , 19 },, "e.g. VarName, FuncName( param1, ... ), VarName := Value, Arr[i,1] := Value, etc.",, .F., .T., .F., .F. , .T. , .F. , .F., .F., .F. )
+
+
+               _DefineTextBox( "TextBox_Calc",, 0, 0,,, "", "Arial", 10, "e.g. VarName, FuncName( param1, ... ), VarName := Value, Arr[i,1] := Value, etc.",, .F., .F., .F., .F.,,,,, .F.,, .F. ,.T., .F., .F., .F. , , { 255 , 231 , 186 } , { 139 , 69 , 19 } , .F. , .F. , , )
+
+            _EndTabPage()
+
+            _BeginTabPage ( "Variables" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Variables" )' )
+
+
+
+
+
+
+
+
+
+
+               _DefineGrid ( "Grid_Vars" , , 0 , 0 , 0 , 0 , { "Level", "Scope", "Name", "Type", "Value" } , { 80, 100, 300, 100, 100 } , , , "Arial" , 10 , "Press ENTER for inspect the value of variables" , , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 0 , 128 } , .F. , , , { {||GetForeColorVars()}, {||GetForeColorVars()}, {||GetForeColorVars()}, {||GetForeColorVars()}, {||GetForeColorVars()} } , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+                  SetProperty ( "_HMG_FormDebugger", "Grid_Vars", "PaintDoubleBuffer" , .T. )
+
+            _EndTabPage()
+
+            _BeginTabPage ( "Areas" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Areas" )' )
+
+
+
+
+
+
+
+
+
+
+               _DefineGrid ( "Grid_Areas" , , 0 , 0 , 0 , 0 , {"Alias","Area","RDD Name","Reccount","Recno","Bof","Eof","Found","Deleted","dbFilter", "ordName", "ordKey"} , { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } , , , "Arial" , 10 , "Available work areas" , {|| ( UpdateGridRec() , Domethod ( "_HMG_FormDebugger", "Grid_Areas" , "SETFOCUS" ) )} , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 0 , 128 } , .F. , , , , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+                  SetProperty ( "_HMG_FormDebugger", "Grid_Areas", "PaintDoubleBuffer" , .T. )
+
+
+
+
+
+
+
+
+
+
+
+               _DefineGrid ( "Grid_Rec" , , 0 , 0 , 0 , 0 , {"Name", "Type", "Length", "Value"} , { 0, 0, 0, 0 } , , , "Arial" , 10 , "Value of current RECORD in the selected work area" , , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 100 , 0 } , .F. , , , , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+                  SetProperty ( "_HMG_FormDebugger", "Grid_Rec", "PaintDoubleBuffer" , .T. )
+
+            _EndTabPage()
+
+            _BeginTabPage ( "Setting" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Setting" )' )
+                  _BeginFrame ( "Frame_Config",, 0, 0, 0, 0 , , , , .F. ,.F., .F., .F., .F. , , , .F. )
+
+                  _DefineCheckBox ( "CheckBox_Config1",, 0, 0, "Allow Tracing of Code Blocks", .T. ,"Arial" ,10 , , {||( HMG_Debugger():lCBTrace := GetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "VALUE" ), HMG_Debugger():SetCBTrace( HMG_Debugger():lCBTrace ) )} , , ,, ,, .F., .F. ,.T., .T., .F., .F. , , , , .F., )
+                  _DefineCheckBox ( "CheckBox_Config2",, 0, 0, "Stop at BreakPoint in Animate mode", .T. ,"Arial" ,10 , , {||( HMG_Debugger():lAnimateStopBP := GetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "VALUE" ) )} , , ,, ,, .F., .F. ,.T., .T., .F., .F. , , , , .F., )
+                  _DefineCheckBox ( "CheckBox_Config3",, 0, 0, "Stop at TracePoint in Animate mode", .T. ,"Arial" ,10 , , {||( HMG_Debugger():lAnimateStopTP := GetProperty ( "_HMG_FormDebugger", "CheckBox_Config3" , "VALUE" ) )} , , ,, ,, .F., .F. ,.T., .T., .F., .F. , , , , .F., )
+                  SetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "WIDTH" , GetTextWidth (NIL, GetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "CAPTION" ), _HMG_SYSDATA [ 36 ] [ GetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "INDEX" ) ] ) + 50 )
+                  SetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "WIDTH" , GetTextWidth (NIL, GetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "CAPTION" ), _HMG_SYSDATA [ 36 ] [ GetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "INDEX" ) ] ) + 50 )
+                  SetProperty ( "_HMG_FormDebugger", "CheckBox_Config3" , "WIDTH" , GetTextWidth (NIL, GetProperty ( "_HMG_FormDebugger", "CheckBox_Config3" , "CAPTION" ), _HMG_SYSDATA [ 36 ] [ GetProperty ( "_HMG_FormDebugger", "CheckBox_Config3" , "INDEX" ) ] ) + 50 )
+
+                  _DefineLabel ( "Label_Config",, 0, 0, "Speed in Animate mode ( in milliseconds ) ",,, "Arial", 10, .T., .F. , .F. , .F. , .F. , .F. ,,,,,, .F., .T., .F., .F. , .T. , .F. , .F., .F., .F. )
+                  _DefineSpinner ( "Spinner_Config",, 0, 0,, 0, "Arial", 10, 0, 65534,, {||( HMG_Debugger():nSpeed := GetProperty ( "_HMG_FormDebugger", "Spinner_Config" , "VALUE" ) )},,,,, .F., .F., .F., .F., .F., .F., .F., .F., , , )
+
+                  _DefineMixedButton ( "Button_Config1",, 0, 0, "Load", {|| LoadSettings()},,,,,,,, .F., .F.,, .F. , .F., .F., .F., .F., "_open" , "LEFT" , .F., .F. )
+                  _DefineMixedButton ( "Button_Config2",, 0, 0, "Save", {|| SaveSettings()},,,,,,,, .F., .F.,, .F. , .F., .F., .F., .F., "_save" , "LEFT" , .F., .F. )
+
+            _EndTabPage()
+
+            _BeginTabPage ( "About" , )
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "About" )' )
+               _DefineImage ( "Image_1",, 0, 0, "_about" ,,, {|| ShellExecute(0, "open", "rundll32.exe", "url.dll,FileProtocolHandler http://srvet.blogspot.com", NIL, 1)} , , .F. , .F. , .F. , , .F. , , "Click here for open the blog of author: http://srvet.blogspot.com" )
+               SetWindowCursor (GetProperty ( "_HMG_FormDebugger", "Image_1" , "HANDLE" ), (32649))
+
+            _EndTabPage()
+
+         _EndTab()
+
+      _EndWindow ()
+
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + "( ACTIVATE WINDOW )" )
+      AddDbgForm( "_HMG_FormDebugger" )
+
+      hMainMenu := GetMenu( GetProperty ( "_HMG_FormDebugger" , "HANDLE" ) )
+      SetMenu( GetProperty ( "_HMG_FormDebugger" , "HANDLE" ), 0 )
+
+      EnableConfig( .F. )
+      MenuCheckRunMode( 7 )
+      SetProperty ( "_HMG_FormDebugger", "Menu_Setting" , "CHECKED" , .F. )
+      SetProperty ( "_HMG_FormDebugger", "NoClose" , .T. )
+      SetProperty ( "_HMG_FormDebugger", "WIDTH" , 700 )
+      SetProperty ( "_HMG_FormDebugger", "HEIGHT" , GetDesktopRealHeight() )
+      SetProperty ( "_HMG_FormDebugger", "ROW" , GetDesktopRealTop() )
+      SetProperty ( "_HMG_FormDebugger", "COL" , ( GetDesktopRealLeft() + GetDesktopRealWidth()  - GetProperty ( "_HMG_FormDebugger", "WIDTH" ) ) )
+      DoMethod ( "_HMG_FormDebugger", "SHOW" )
+      nEventIndex := EventCreate ("HMG_ShowEventMonitor()",,)
+
+      HMG_DebuggerWaitMessage()
+
+      _ActivateWindow ( {"_HMG_FormDebugger"}, .F. , .T. )
+      HMG_ActivateMainWindowFirst( lOldMainFirst )
+
+      IF hb_FileExists( HMG_Debugger():cSettingsFileName )
+         RestoreSettings( HMG_Debugger():cSettingsFileName )
+      ELSE
+         HMG_Debugger():cSettingsFileName := ""
+      ENDIF
+
+      DoMethod ( "_HMG_FormDebugger", "REDRAW" )
+      DoEvents()
+
+   ENDIF
+
+RETURN
+
+
+PROCEDURE HotKeyHelp
+THREAD STATIC lEntry := .F.
+LOCAL cText := ""
+   IF lEntry == .T.; RETURN; ELSE; lEntry := .T.; ENDIF
+   cText := cText + "Alt+D"   +Chr( 9 )+ "On/Off"         + hb_eol()
+   cText := cText + "Alt +/-" +Chr( 9 )+ "Transparency"   + hb_eol()
+   cText := cText + "Alt+F9"  +Chr( 9 )+ "Top/Bottom"     + hb_eol()
+   cText := cText + "Alt+M"   +Chr( 9 )+ "Release Memory" + hb_eol()
+   cText := cText + "F11"     +Chr( 9 )+ "ToolBar/Menu"   + hb_eol()
+   cText := cText + "Alt+X"   +Chr( 9 )+ "Quit"           + hb_eol()
+   cText := cText + hb_eol()
+   cText := cText + "Ctrl+H"  +Chr( 9 )+ "Help"         + hb_eol()
+   cText := cText + "F3"      +Chr( 9 )+ "Animate"      + hb_eol()
+   cText := cText + "F8"      +Chr( 9 )+ "Step"         + hb_eol()
+   cText := cText + "F10"     +Chr( 9 )+ "Trace"        + hb_eol()
+   cText := cText + "F5"      +Chr( 9 )+ "Go"           + hb_eol()
+   cText := cText + "F7"      +Chr( 9 )+ "To Cursor"    + hb_eol()
+   cText := cText + "Ctrl+F5" +Chr( 9 )+ "Next Routine" + hb_eol()
+   cText := cText + "Ctrl+F3" +Chr( 9 )+ "Pause"        + hb_eol()
+   cText := cText + "F9"      +Chr( 9 )+ "BreakPoint"   + hb_eol()
+   MessageBoxIndirect( NIL, cText, "HMG Debugger" + " - Help", hb_bitOR( 4096, 0 ), "_dbgIcon" )
+   lEntry := .F.
+RETURN
+
+
+PROCEDURE MenuOption( nID )
+   MenuCheckRunMode( nID )
+   SWITCH nID
+      CASE 1         ; HMG_Debugger():Animate()          ; EXIT
+      CASE 2            ; HMG_Debugger():Step()             ; EXIT
+      CASE 3           ; HMG_Debugger():Trace()            ; EXIT
+      CASE 4              ; HMG_Debugger():Go()               ; EXIT
+      CASE 5        ; ToCursor()                        ; EXIT
+      CASE 6            ; HMG_Debugger():SetNextRoutine()   ; EXIT
+      CASE 7           ; HMG_Debugger():Pause()            ; EXIT
+      CASE 8      ; ToggleBreakPoint()                ; EXIT
+      CASE 9      ; AddWatchIni( 2 )             ; EXIT
+      CASE 10      ; AddWatchIni( 3 )             ; EXIT
+      CASE 11   ; EnableConfig()                    ; EXIT
+      CASE 12            ; Quit()                            ; EXIT
+   ENDSWITCH
+RETURN
+
+
+PROCEDURE MenuCheckRunMode( nID )
+   SetProperty ( "_HMG_FormDebugger", "Menu_Animate" , "CHECKED" , .F. )
+   SetProperty ( "_HMG_FormDebugger", "Menu_Step" , "CHECKED" , .F. )
+   SetProperty ( "_HMG_FormDebugger", "Menu_Trace" , "CHECKED" , .F. )
+   SetProperty ( "_HMG_FormDebugger", "Menu_Go" , "CHECKED" , .F. )
+   SetProperty ( "_HMG_FormDebugger", "Menu_ToCursor" , "CHECKED" , .F. )
+   SetProperty ( "_HMG_FormDebugger", "Menu_Next" , "CHECKED" , .F. )
+   SetProperty ( "_HMG_FormDebugger", "Menu_Pause" , "CHECKED" , .F. )
+   SWITCH nID
+      CASE 1         ; SetProperty ( "_HMG_FormDebugger", "Menu_Animate" , "CHECKED" , .T. )   ; EXIT
+      CASE 2            ; SetProperty ( "_HMG_FormDebugger", "Menu_Step" , "CHECKED" , .T. )   ; EXIT
+      CASE 3           ; SetProperty ( "_HMG_FormDebugger", "Menu_Trace" , "CHECKED" , .T. )   ; EXIT
+      CASE 4              ; SetProperty ( "_HMG_FormDebugger", "Menu_Go" , "CHECKED" , .T. )   ; EXIT
+      CASE 5        ; SetProperty ( "_HMG_FormDebugger", "Menu_ToCursor" , "CHECKED" , .T. )   ; EXIT
+      CASE 6            ; SetProperty ( "_HMG_FormDebugger", "Menu_Next" , "CHECKED" , .T. )   ; EXIT
+      CASE 7           ; SetProperty ( "_HMG_FormDebugger", "Menu_Pause" , "CHECKED" , .T. )   ; EXIT
+   ENDSWITCH
+RETURN
+
+
+PROCEDURE ShowHideSplitBox
+   lShowSplitBox := ! lShowSplitBox
+   IF lShowSplitBox == .T.
+      SetMenu( GetProperty ( "_HMG_FormDebugger" , "HANDLE" ), 0 )
+      ShowWindow( GetSplitBoxHANDLE( "_HMG_FormDebugger" ) )
+   ELSE
+      HideWindow( GetSplitBoxHANDLE( "_HMG_FormDebugger" ) )
+      SetMenu( GetProperty ( "_HMG_FormDebugger" , "HANDLE" ), hMainMenu )
+   ENDIF
+   AjustControlSize()
+   RedrawWindow( GetProperty ( "_HMG_FormDebugger", "Label_1" , "HANDLE" ) )
+RETURN
+
+
+PROCEDURE AddDbgForm( cFormName )
+   AAdd( aDebuggerForms, GetFormHandle( cFormName ) )
+RETURN
+
+FUNCTION DeleteDbgForm( cFormName )
+LOCAL i := AScan( aDebuggerForms, GetFormHandle( cFormName ) )
+   IF i > 0
+     hb_ADel( aDebuggerForms, i, .T. )
+   ENDIF
+RETURN i
+
+
+PROCEDURE ViewVars()
+LOCAL cVarName, cValType
+LOCAL xVarValue, aVar, aColor
+LOCAL nPos := GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "VALUE" )
+   IF nPos >= 1 .AND. nPos <= GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "ITEMCOUNT" )
+      aColor := GetForeColorVars( nPos )
+      aVar := aRawVars[ nPos ]
+      cVarName  := HMG_Debugger():VarGetName( aVar )
+      cValType  := HMG_Debugger():VarGetValType( aVar )
+      xVarValue := HMG_Debugger():VarGetValue( aVar )
+      DisplayVars ( cVarName, xVarValue, aColor )
+   ENDIF
+RETURN
+
+
+PROCEDURE DisplayVars ( cVarName, xVarValue, aColor )
+
+LOCAL cFormName := "_HMG_dbgVar_" + cVarName
+LOCAL cGridName := "GridVars2"
+LOCAL cTitle, nRow, aInfo
+LOCAL aItems, aObjRawValue
+LOCAL cFormAux, cGridAux
+LOCAL nCol, lOldMainFirst
+
+   cFormName := StrTran( cFormName, " ")
+   cFormName := StrTran( cFormName, "'")
+   cFormName := StrTran( cFormName, '"')
+   cFormName := StrTran( cFormName, "]")
+   cFormName := StrTran( cFormName, "[", "_")
+   cFormName := StrTran( cFormName, ":", "_")
+
+   GetControlNameByHandle( GetFocus(), @cGridAux, @cFormAux )
+   nRow := GetProperty( cFormAux, cGridAux, "VALUE" )
+   nCol := Iif ( cGridAux == "GridVars2" , 1 , 3 )
+   SetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "VALUE" , GetProperty( cFormAux, cGridAux, "CELL", nRow, nCol ) )
+
+   IF ValType( xVarValue ) == "A" .AND. Len( xVarValue ) > 0
+      aItems := HMG_Debugger():GetArrayInfo( cVarName, xVarValue )
+   ELSEIF ValType( xVarValue ) == "H" .AND. Len( xVarValue ) > 0
+      aItems := HMG_Debugger():GetHashInfo( cVarName, xVarValue )
+   ELSEIF ValType( xVarValue ) == "O"
+      aItems := HMG_Debugger():GetObjectInfo( cVarName, xVarValue, @aObjRawValue )
+      IF Len( aItems ) == 0
+         PlayExclamation()
+         RETURN
+      ENDIF
+   ELSE
+      PlayExclamation()
+      RETURN
+   ENDIF
+
+   IF _IsWindowDefined( cFormName )
+      DoMethod( cFormName, "RELEASE" )
+   ENDIF
+
+      IF ValType( xVarValue ) $ "AH"
+         cTitle := cVarName + " [ 1 ... " + hb_ntos( Len( xVarValue ) ) + " ] "
+      ELSE
+         cTitle := cVarName + " is of class: " + xVarValue:ClassName()
+      ENDIF
+
+      aInfo := GET_HMG_SYSDATA()
+      _HMG_SYSDATA [ 223 ] := ""
+
+      lOldMainFirst := HMG_ActivateMainWindowFirst( .F. )
+
+
+
+
+
+
+
+
+
+;;;;;;;;;;;; ; _dummy() ; ; _DefineWindow ( cFormName, cTitle, 0, 0, 650, 550, .F., .F., .F., .F., .F.,.F., "",{||     Ajust( cFormName, cGridName )}, {||  DeleteDbgForm( cFormName )} ,, {||     Ajust( cFormName, cGridName )} , ,, , , .F. , .F. , .F. , , .F. , ,, , , ,, , , , , , , , , , .F. , {|| Ajust( cFormName, cGridName )} , , , .F. , , , , , , , , , , .F. )
+
+
+
+
+
+
+
+
+
+
+
+
+         _DefineGrid ( cGridName , , GetSystemMetrics( 2 ) , GetSystemMetrics( 3 ) , 0 , 0 , { "Name", "Type", "Value" } , { 300, 100, 100 } , aItems , , "Arial" , 10 , "Press ENTER for inspect the value of variables" , , , , ,, .T.,, , .F. , , .T., .F., .F., .F. , .F. , , , , Nil , Nil , .F. , Nil , { 220 , 220 , 220 } , { 0 , 0 , 128 } , .F. , , , { {|| aColor }, {|| aColor }, {|| aColor } } , , , !.F. , , .F. , , , .F. , .F. , .F. , , , , , ,, .F. , .F. , , , )
+
+         _DefineHotKey ( , 0 , 13 , {|| OnKeyPress_DisplayVars( 13, cFormName, cGridName, xVarValue, aObjRawValue, aColor )} )
+         _DefineHotKey ( , 0 , 0x1B , {|| OnKeyPress_DisplayVars( 0x1B, cFormName )} )
+
+         SetProperty( cFormName, cGridName, "PaintDoubleBuffer", .T. )
+         SetProperty( cFormName, cGridName, "ColumnWIDTH", 1, (-1) )
+         SetProperty( cFormName, cGridName, "ColumnWIDTH", 3, (-1) )
+
+         IF GetProperty( cFormName, cGridName, "ColumnWIDTH", 1 ) < 300
+            SetProperty( cFormName, cGridName, "ColumnWIDTH", 1, 300 )
+         ENDIF
+         IF GetProperty( cFormName, cGridName, "ColumnWIDTH", 3 ) < 100
+            SetProperty( cFormName, cGridName, "ColumnWIDTH", 3, 100 )
+         ENDIF
+
+      _EndWindow ()
+      AddDbgForm( cFormName )
+
+      DoMethod ( cFormName , "Center" )
+      _ActivateWindow ( {cFormName}, .F. , .T. )
+      HMG_ActivateMainWindowFirst( lOldMainFirst )
+
+      PUT_HMG_SYSDATA( aInfo )
+
+RETURN
+
+
+PROCEDURE OnKeyPress_DisplayVars( nVKey, cFormName, cGridName, xVarValue, aObjRawValue, aColor )
+LOCAL cVarName, nRow
+   IF nVKey == 13
+      nRow := GetProperty( cFormName, cGridName, "VALUE" )
+      cVarName := GetProperty( cFormName, cGridName, "CELL", nRow, 1 )
+      IF nRow > 0 .AND. ! Empty( cVarName )
+         DO CASE
+            CASE ValType( xVarValue ) == "A"
+                 DisplayVars( cVarName, xVarValue[ nRow ], aColor  )
+            CASE ValType( xVarValue ) == "H"
+                 DisplayVars( cVarName, hb_HValueAt( xVarValue, nRow ), aColor )
+            CASE ValType( xVarValue ) == "O"
+                 DisplayVars( cVarName, aObjRawValue[ nRow ], aColor  )
+         ENDCASE
+      ENDIF
+   ELSEIF nVKey == 0x1B
+      DoMethod( cFormName, "RELEASE" )
+   ENDIF
+RETURN
+
+
+PROCEDURE Ajust( cFormName, cGridName )
+LOCAL nWidth  := GetProperty( cFormName, "WIDTH"  ) - GetProperty( cFormName, cGridName, "COL" ) - GetSystemMetrics( 45 ) - GetSystemMetrics( 2 )  * 2
+LOCAL nHeight := GetProperty( cFormName, "HEIGHT" ) - GetProperty( cFormName, cGridName, "ROW" ) - GetSystemMetrics( 46 ) - GetSystemMetrics( 3 ) * 3
+   SetProperty( cFormName, cGridName, "WIDTH", nWidth )
+   SetProperty( cFormName, cGridName, "HEIGHT", nHeight )
+RETURN
+
+
+FUNCTION GET_HMG_SYSDATA()
+LOCAL aInfo := ARRAY( 21 )
+   aInfo[  1 ] := _HMG_SYSDATA [ 223 ]
+   aInfo[  2 ] := _HMG_SYSDATA [ 214 ]
+   aInfo[  3 ] := _HMG_SYSDATA [ 235 ]
+   aInfo[  4 ] := _HMG_SYSDATA [ 236 ]
+   aInfo[  5 ] := _HMG_SYSDATA [ 237 ]
+   aInfo[  6 ] := _HMG_SYSDATA [ 238 ]
+   aInfo[  7 ] := _HMG_SYSDATA [ 183 ]
+   aInfo[  8 ] := _HMG_SYSDATA [ 181 ]
+   aInfo[  9 ] := _HMG_SYSDATA [ 240 ]
+   aInfo[ 10 ] := _HMG_SYSDATA [ 215 ]
+   aInfo[ 11 ] := _HMG_SYSDATA [ 224 ]
+   aInfo[ 12 ] := _HMG_SYSDATA [ 182 ]
+   aInfo[ 13 ] := _HMG_SYSDATA [ 264 ]
+   aInfo[ 14 ] := _HMG_SYSDATA [ 265 ]
+   aInfo[ 15 ] := _HMG_SYSDATA [ 164 ]
+   aInfo[ 16 ] := _HMG_SYSDATA [  55 ]
+   aInfo[ 17 ] := _HMG_SYSDATA [  56 ]
+   aInfo[ 18 ] := _HMG_SYSDATA [  57 ]
+   aInfo[ 19 ] := _HMG_SYSDATA [ 225 ]
+   aInfo[ 20 ] := _HMG_SYSDATA [ 342 ]
+   aInfo[ 21 ] := _HMG_SYSDATA [ 343 ]
+RETURN aInfo
+
+
+FUNCTION PUT_HMG_SYSDATA( aInfo )
+   _HMG_SYSDATA [ 223 ] := aInfo[  1 ]
+   _HMG_SYSDATA [ 214 ] := aInfo[  2 ]
+   _HMG_SYSDATA [ 235 ] := aInfo[  3 ]
+   _HMG_SYSDATA [ 236 ] := aInfo[  4 ]
+   _HMG_SYSDATA [ 237 ] := aInfo[  5 ]
+   _HMG_SYSDATA [ 238 ] := aInfo[  6 ]
+   _HMG_SYSDATA [ 183 ] := aInfo[  7 ]
+   _HMG_SYSDATA [ 181 ] := aInfo[  8 ]
+   _HMG_SYSDATA [ 240 ] := aInfo[  9 ]
+   _HMG_SYSDATA [ 215 ] := aInfo[ 10 ]
+   _HMG_SYSDATA [ 224 ] := aInfo[ 11 ]
+   _HMG_SYSDATA [ 182 ] := aInfo[ 12 ]
+   _HMG_SYSDATA [ 264 ] := aInfo[ 13 ]
+   _HMG_SYSDATA [ 265 ] := aInfo[ 14 ]
+   _HMG_SYSDATA [ 164 ] := aInfo[ 15 ]
+   _HMG_SYSDATA [  55 ] := aInfo[ 16 ]
+   _HMG_SYSDATA [  56 ] := aInfo[ 17 ]
+   _HMG_SYSDATA [  57 ] := aInfo[ 18 ]
+   _HMG_SYSDATA [ 225 ] := aInfo[ 19 ]
+   _HMG_SYSDATA [ 342 ] := aInfo[ 20 ]
+   _HMG_SYSDATA [ 343 ] := aInfo[ 21 ]
+RETURN NIL
+
+
+PROCEDURE SaveSettings()
+THREAD STATIC lEntry := .F.
+LOCAL cFileName
+   IF lEntry == .T.; RETURN; ELSE; lEntry := .T.; ENDIF
+   cFileName := PutFile ( { {"HMG Debugger Files","*.dbg"} } , "HMG Debugger" + ": Save Settings", NIL, NIL, HMG_Debugger():cSettingsFileName )
+   IF ! Empty( cFileName )
+      HMG_Debugger():cSettingsFileName := cFileName
+      HMG_Debugger():SaveSettings( cFileName )
+   ENDIF
+   lEntry := .F.
+RETURN
+
+
+PROCEDURE LoadSettings()
+THREAD STATIC lEntry := .F.
+LOCAL cFileName
+   IF lEntry == .T.; RETURN; ELSE; lEntry := .T.; ENDIF
+   cFileName := GetFile ( { {"HMG Debugger Files","*.dbg"} } , "HMG Debugger" + ": Load Settings" )
+   IF ! Empty( cFileName )
+      HMG_Debugger():cSettingsFileName := cFileName
+      RestoreSettings( cFileName )
+   ENDIF
+   lEntry := .F.
+RETURN
+
+
+PROCEDURE RestoreSettings( cFileName )
+   HMG_Debugger():RestoreSettings( cFileName )
+   SetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "VALUE" , HMG_Debugger():lCBTrace )
+   SetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "VALUE" , HMG_Debugger():lAnimateStopBP )
+   SetProperty ( "_HMG_FormDebugger", "CheckBox_Config3" , "VALUE" , HMG_Debugger():lAnimateStopTP )
+   SetProperty ( "_HMG_FormDebugger", "Spinner_Config" , "VALUE" , HMG_Debugger():nSpeed )
+RETURN
+
+
+PROCEDURE Quit
+THREAD STATIC lEntry := .F.
+LOCAL nRet
+   IF lEntry == .T.; RETURN; ELSE; lEntry := .T.; ENDIF
+   nRet := MessageBoxIndirect( NIL, "Are you sure you want to EXIT the program ?", "HMG Debugger", hb_bitOR( 4096, 1 ), "_dbgIcon" )
+   IF nRet == 1
+      HMG_Debugger():Quit()
+   ENDIF
+   lEntry := .F.
+RETURN
+
+
+PROCEDURE RepaintGridRow ( cFormName, cGridName, nRow )
+LOCAL xValue := GetProperty( cFormName, cGridName, "ITEM", nRow)
+   SetProperty( cFormName, cGridName, "ITEM", nRow, xValue )
+RETURN
+
+
+PROCEDURE ToggleBreakPoint
+THREAD STATIC lEntry := .F.
+LOCAL i := GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" )
+LOCAL nLine := GetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "VALUE" )
+LOCAL cFileName := GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "ITEM" , GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" ) )
+LOCAL cMsg
+   IF lEntry == .T.; RETURN; ELSE; lEntry := .T.; ENDIF
+   IF GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) <> 1
+      SetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" , 1 )
+      MessageBoxIndirect( NIL, "Toggle BreakPoint : First select the line in the source code.", "HMG Debugger", hb_bitOR( 4096, 0 ), "_dbgIcon" )
+   ELSEIF HMG_Debugger():IsValidStopLine( cFileName, nLine )
+      HMG_Debugger():BreakPointToggle( cFileName, nLine )
+      RepaintGridRow( "_HMG_FormDebugger", aGrid_SourceCode[i][1], nLine )
+   ELSE
+      cMsg := "Toggle BreakPoint : Invalid line of code ( # "+ hb_ntos(nLine) +" )"
+      i := HMG_Debugger():GetNextValidStopLineEx( cFileName, nLine )
+      IF HMG_Debugger():IsValidStopLine( cFileName, i )
+         cMsg = cMsg + Repl( HB_OSNewLine(), 2 ) + "The next valid line of code is ( # "+ hb_ntos(i) +" )"
+      ELSE
+         cMsg = cMsg + Repl( HB_OSNewLine(), 2 ) + "It does not exist next valid line of code in this file"
+      ENDIF
+      MessageBoxIndirect( NIL, cMsg, "HMG Debugger", hb_bitOR( 4096, 0 ), "_dbgIcon" )
+   ENDIF
+   lEntry := .F.
+RETURN
+
+
+PROCEDURE AddWatchIni( nOption )
+   nBtnOption := nOption
+   IF nBtnOption == 3 .OR. nBtnOption == 2
+      IF GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) <> 3
+         SetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" , 3 )
+      ELSE
+         UpdateGridWatch()
+      ENDIF
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "Enabled" , .T. )
+      SetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "VALUE" , "New" )
+      SetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "VALUE" , Iif( nBtnOption == 3, "WatchPoint", "TracePoint" ) )
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "VALUE" , "" )
+      Domethod ( "_HMG_FormDebugger", "TextBox_Watch" , "SETFOCUS" )
+   ENDIF
+RETURN
+
+
+PROCEDURE ToCursor
+THREAD STATIC lEntry := .F.
+LOCAL i := GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" )
+LOCAL nLine := GetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "VALUE" )
+LOCAL cFileName := GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "ITEM" , GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" ) )
+LOCAL cMsg
+   IF lEntry == .T.; RETURN; ELSE; lEntry := .T.; ENDIF
+   IF HMG_Debugger():IsValidStopLine( cFileName, nLine )
+      HMG_Debugger():SetToCursor( cFileName, nLine )
+   ELSE
+      SetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" , 1 )
+      cMsg := "To Cursor : Invalid line of code ( # "+ hb_ntos(nLine) +" )"
+      i := HMG_Debugger():GetNextValidStopLineEx( cFileName, nLine )
+      IF HMG_Debugger():IsValidStopLine( cFileName, i )
+         cMsg = cMsg + Repl( HB_OSNewLine(), 2 ) + "The next valid line of code is ( # "+ hb_ntos(i) +" )"
+      ELSE
+         cMsg = cMsg + Repl( HB_OSNewLine(), 2 ) + "It does not exist next valid line of code in this file"
+      ENDIF
+      MessageBoxIndirect( NIL, cMsg, "HMG Debugger", hb_bitOR( 4096, 0 ), "_dbgIcon" )
+   ENDIF
+   lEntry := .F.
+RETURN
+
+
+PROCEDURE EvaluateExp( cExpr )
+LOCAL lValid, cResult, cValue
+   IF ! Empty( cExpr )
+      cValue := HMG_Debugger():GetExprValue( cExpr, @lValid )
+      cResult := __dbgValToStr( cValue )
+      Domethod ( "_HMG_FormDebugger", "Grid_Calc" , "AddItem" , { cExpr, cResult } )
+   ENDIF
+RETURN
+
+
+PROCEDURE OnKeyPress( nVKey )
+LOCAL cFileName, nLineCode
+LOCAL cType, i, nRet
+LOCAL cExpr, nWatch
+LOCAL hWnd := GetFocus()
+
+   DO CASE
+
+      CASE GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "HANDLE" ) == hWnd
+         IF nVKey == 13
+            DoMethod( "_HMG_FormDebugger", aGrid_SourceCode[ GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" ) ][1], "SETFOCUS" )
+         ELSEIF nVKey == 0x1B
+            SetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" , nComboBoxValue )
+            DoMethod( "_HMG_FormDebugger", aGrid_SourceCode[ GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" ) ][1], "SETFOCUS" )
+         ENDIF
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "HANDLE" ) == hWnd
+         IF nVKey == 13
+            cFileName := AllTrim( GetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "CELL" , GetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "VALUE" ) , 2 ) )
+            i := AScan( HMG_Debugger():GetSourceFiles(), cFileName )
+            IF ! Empty( cFileName ) .AND. i > 0
+               SetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" , i )
+               nLineCode := Val( GetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "CELL" , GetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "VALUE" ) , 4 ) )
+               SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "VALUE", nLineCode )
+               SetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" , 1 )
+               DoMethod( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "SETFOCUS" )
+            ENDIF
+         ENDIF
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "HANDLE" ) == hWnd
+
+         IF nVKey == 13
+            cType := AllTrim( GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CELL" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CellRowFocused" ) , 2 ) )
+            IF cType $ "wp,tp"
+               SetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "VALUE" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CELL" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CellRowFocused" ) , 1 ) )
+               SetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "VALUE" , Iif( cType == "wp", "WatchPoint", "TracePoint") )
+               SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "VALUE" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CELL" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CellRowFocused" ) , 3 ) )
+               nBtnOption := 4
+               SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "ENABLED" , .T. )
+               Domethod ( "_HMG_FormDebugger", "TextBox_Watch" , "SETFOCUS" )
+               _PushKey (35)
+            ENDIF
+         ELSEIF nVKey == 46 .AND. GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CellRowFocused" ) > 0
+            nRet := MessageBoxIndirect( NIL, "Are sure you want to DELETE the item # "+ hb_ntos( GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CellRowFocused" ) ) +" ?", "HMG Debugger", hb_bitOR( 4096, 1 ), "_dbgIcon" )
+            IF nRet == 1
+               HMG_Debugger():WatchDelete( GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CellRowFocused" ) )
+               Domethod ( "_HMG_FormDebugger", "Grid_Watch" , "DeleteItem" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "CellRowFocused" ) )
+            ENDIF
+            Domethod ( "_HMG_FormDebugger", "Grid_Watch" , "SETFOCUS" )
+         ENDIF
+
+      CASE GetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "HANDLE" ) == hWnd
+         cExpr  := GetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "VALUE" )
+         nWatch := Val( GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "VALUE" ) )
+         IF ! Empty( cExpr ) .AND. ( nBtnOption == 3 .OR. nBtnOption == 2 .OR. nBtnOption == 4 )
+            IF nVKey == 13
+               IF nBtnOption == 3
+                  HMG_Debugger():WatchPointAdd( cExpr )
+               ELSEIF nBtnOption == 2
+                  HMG_Debugger():TracePointAdd( cExpr )
+               ELSEIF nBtnOption == 4 .AND. nWatch > 0
+                  HMG_Debugger():WatchSetExpr( nWatch, cExpr )
+               ENDIF
+               UpdateGridWatch()
+            ENDIF
+         ENDIF
+         IF nVKey == 13 .OR. nVKey == 0x1B
+            SetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "VALUE" , "" )
+            SetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "VALUE" , "" )
+            SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "VALUE" , "" )
+            SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "Enabled" , .F. )
+            nBtnOption := 0
+         ELSEIF nVKey == 46
+            SendMessage( GetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "HANDLE" ), 256, 46, 0 )
+            SendMessage( GetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "HANDLE" ), 257,   46, 0 )
+         ENDIF
+
+      CASE GetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "HANDLE" ) == hWnd
+         IF nVKey == 13
+            EvaluateExp( GetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "VALUE" ) )
+            SetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "VALUE" , "" )
+         ELSEIF nVKey == 46
+            SendMessage( GetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "HANDLE" ), 256, 46, 0 )
+            SendMessage( GetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "HANDLE" ), 257,   46, 0 )
+         ENDIF
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "HANDLE" ) == hWnd
+         IF nVKey == 13
+            SetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "VALUE" , GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "CELL" , GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "CellRowFocused" ) , 1 ) )
+            Domethod ( "_HMG_FormDebugger", "TextBox_Calc" , "SETFOCUS" )
+         ELSEIF nVKey == 46
+            Domethod ( "_HMG_FormDebugger", "Grid_Calc" , "DeleteItem" , GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "CellRowFocused" ) )
+            Domethod ( "_HMG_FormDebugger", "Grid_Calc" , "SETFOCUS" )
+         ENDIF
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "HANDLE" ) == hWnd
+         IF nVKey == 13
+            ViewVars()
+         ENDIF
+
+   ENDCASE
+
+RETURN
+
+
+
+PROCEDURE EnableConfig( lValue )
+   IF ValType( lValue ) == "U"
+      IF lShowSplitBox == .T.
+         lValue := GetProperty ( "_HMG_FormDebugger", "Button_11" , "VALUE" )
+         SetProperty ( "_HMG_FormDebugger", "Menu_Setting" , "CHECKED" , lValue )
+      ELSE
+         lValue := ! GetProperty ( "_HMG_FormDebugger", "Menu_Setting" , "CHECKED" )
+         SetProperty ( "_HMG_FormDebugger", "Menu_Setting" , "CHECKED" , lValue )
+         SetProperty ( "_HMG_FormDebugger", "Button_11" , "VALUE" , lValue )
+      ENDIF
+      SetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" , 7 )
+   ENDIF
+   SetProperty( "_HMG_FormDebugger", "CheckBox_Config1", "ENABLED", lValue )
+   SetProperty( "_HMG_FormDebugger", "CheckBox_Config2", "ENABLED", lValue )
+   SetProperty( "_HMG_FormDebugger", "CheckBox_Config3", "ENABLED", lValue )
+   SetProperty( "_HMG_FormDebugger", "Label_Config",     "ENABLED", lValue )
+   SetProperty( "_HMG_FormDebugger", "Spinner_Config",   "ENABLED", lValue )
+   SetProperty( "_HMG_FormDebugger", "Button_Config1",   "ENABLED", lValue )
+   SetProperty( "_HMG_FormDebugger", "Button_Config2",   "ENABLED", lValue )
+RETURN
+
+
+FUNCTION GetForeColorSourceCode()
+LOCAL i, cFileName, aBreakPoints
+   cFileName := aGrid_SourceCode[ nComboBoxValue ][3]
+   aBreakPoints := HMG_Debugger():GetBreakPoints()
+   FOR i := 1 TO Len ( aBreakPoints )
+      IF aBreakPoints[i,1] == _HMG_SYSDATA [ 195 ] .AND. aBreakPoints[i,2] == cFileName
+         RETURN { 255 , 0 , 0 }
+      ENDIF
+   NEXT
+RETURN IIF (_HMG_SYSDATA [ 196 ] == 2, { 0 , 0 , 128 }, NIL)
+
+
+FUNCTION GetFontSourceCode()
+LOCAL i, cFileName, aBreakPoints
+   cFileName := aGrid_SourceCode[ nComboBoxValue ][3]
+   aBreakPoints := HMG_Debugger():GetBreakPoints()
+   FOR i := 1 TO Len ( aBreakPoints )
+      IF aBreakPoints[i,1] == _HMG_SYSDATA [ 195 ] .AND. aBreakPoints[i,2] == cFileName
+         RETURN { "ARIAL", 10, .T., .T. }
+      ENDIF
+   NEXT
+RETURN NIL
+
+
+FUNCTION GetForeColorWatch
+LOCAL aColor := NIL
+LOCAL aWatch := HMG_Debugger():GetWatch()
+   IF aWatch [ _HMG_SYSDATA [ 195 ] ] [ 1 ] == "tp" .AND. aWatch [ _HMG_SYSDATA [ 195 ] ] [ 4 ] == .T.
+      aColor := { 255 , 0 , 0 }
+   ENDIF
+RETURN aColor
+
+
+FUNCTION GetForeColorVars( nRow )
+LOCAL aColor := NIL
+   hb_default( @nRow, _HMG_SYSDATA [ 195 ] )
+   DO CASE
+      CASE "Public"  $ GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "CELL" , nRow , 2 ); aColor := { 34 , 139 , 34 }
+      CASE "Private" $ GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "CELL" , nRow , 2 ); aColor := { 0 , 0 , 139 }
+      CASE "STATIC"  $ GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "CELL" , nRow , 2 ); aColor := { 255 , 69 , 0 }
+      CASE "Local"   $ GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "CELL" , nRow , 2 ); aColor := { 160 , 32 , 240 }
+   ENDCASE
+RETURN aColor
+
+
+PROCEDURE AjustControlSize
+LOCAL i, aux
+
+
+
+      SetProperty ( "_HMG_FormDebugger", "Label_1" , "ROW" , Iif( lShowSplitBox == .T., GetSplitBoxHEIGHT( "_HMG_FormDebugger" ), 0 ) + GetSystemMetrics( 3 )*0.33 )
+
+
+
+      SetProperty ( "_HMG_FormDebugger", "Tab_1" , "ROW" , GetSystemMetrics( 3 )*2 + Iif( lShowSplitBox == .T., GetSplitBoxHEIGHT( "_HMG_FormDebugger" ), 0 ) )
+      SetProperty ( "_HMG_FormDebugger", "Tab_1" , "COL" , GetSystemMetrics( 2 ) )
+      SetProperty ( "_HMG_FormDebugger", "Tab_1" , "WIDTH" , GetProperty ( "_HMG_FormDebugger", "WIDTH" ) - GetSystemMetrics( 2 )*3 )
+      SetProperty ( "_HMG_FormDebugger", "Tab_1" , "HEIGHT" , GetProperty ( "_HMG_FormDebugger", "HEIGHT" ) - GetProperty ( "_HMG_FormDebugger", "Tab_1" , "ROW" ) - GetSystemMetrics( 3 )*4 )
+
+
+      SetProperty ( "_HMG_FormDebugger", "Button_Refresh" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Tab_1" , "ROW" ) + TabCtrl_AdjustRect( GetProperty ( "_HMG_FormDebugger", "Tab_1" , "HANDLE" ), .F. )[2] - GetProperty ( "_HMG_FormDebugger", "Button_Refresh" , "HEIGHT" ) - 1 - GetSystemMetrics( 46 ) )
+      SetProperty ( "_HMG_FormDebugger", "Button_Refresh" , "COL" , GetProperty ( "_HMG_FormDebugger", "Tab_1" , "COL" ) + GetProperty ( "_HMG_FormDebugger", "Tab_1" , "WIDTH" ) - GetProperty ( "_HMG_FormDebugger", "Button_Refresh" , "WIDTH" ) - 1 - GetSystemMetrics( 45 ) )
+
+
+
+      SetProperty ( "_HMG_FormDebugger", "Image_1" , "ROW" , (GetProperty ( "_HMG_FormDebugger", "Tab_1" , "HEIGHT" ) - GetProperty ( "_HMG_FormDebugger", "Image_1" , "HEIGHT" ))/2 )
+      SetProperty ( "_HMG_FormDebugger", "Image_1" , "COL" , (GetProperty ( "_HMG_FormDebugger", "Tab_1" , "WIDTH" )  - GetProperty ( "_HMG_FormDebugger", "Image_1" , "WIDTH" ) )/2 )
+
+
+      FOR i := 1 TO Len( HMG_Debugger():GetSourceFiles() )
+         AdjustCtrlInTab( aGrid_SourceCode[i][1], "Tab_1", "_HMG_FormDebugger" )
+         IF i == 1
+            SetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "COL" , GetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "COL") )
+            SetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "ROW" , GetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "ROW") )
+            SetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "WIDTH" , GetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "WIDTH") )
+         ENDIF
+         aux := GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "ROW" ) + GetSystemMetrics( 3 ) * 2.5
+         SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "ROW", aux )
+         aux := GetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "HEIGHT" ) - GetSystemMetrics( 3 ) * 2.5
+         SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "HEIGHT", aux )
+      NEXT
+
+
+      AdjustCtrlInTab( "Grid_CallStack", "Tab_1", "_HMG_FormDebugger" )
+
+
+      AdjustCtrlInTab( "Grid_Watch", "Tab_1", "_HMG_FormDebugger" )
+      SetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "HEIGHT" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "HEIGHT" ) - GetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "HEIGHT" ) - GetSystemMetrics( 3 ) )
+      SetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "ROW" ) + GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "HEIGHT" ) + GetSystemMetrics( 3 ) )
+      SetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "COL" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "COL" ) )
+
+      SetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "ROW" ) )
+      SetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "COL" , GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "COL" )  + GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "WIDTH" ) + GetSystemMetrics( 2 ) / 2 )
+
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "ROW" ) )
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "COL" , GetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "COL" ) + GetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "WIDTH" ) + GetSystemMetrics( 2 ) / 2 )
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Watch" , "WIDTH" , GetProperty ( "_HMG_FormDebugger", "Grid_Watch" , "WIDTH" ) - GetProperty ( "_HMG_FormDebugger", "Label_WatchNro" , "WIDTH" )  - GetProperty ( "_HMG_FormDebugger", "Label_WatchType" , "WIDTH" ) - GetSystemMetrics( 2 ) )
+
+
+      AdjustCtrlInTab( "Grid_Calc", "Tab_1", "_HMG_FormDebugger" )
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "WIDTH" , GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "WIDTH" ) )
+      SetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "HEIGHT" , GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "HEIGHT" ) - GetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "HEIGHT" ) - GetProperty ( "_HMG_FormDebugger", "Label_Calc" , "HEIGHT" ) - GetSystemMetrics( 3 ) )
+      SetProperty ( "_HMG_FormDebugger", "Label_Calc" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "ROW" ) + GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "HEIGHT" ) + GetSystemMetrics( 3 ) )
+      SetProperty ( "_HMG_FormDebugger", "Label_Calc" , "COL" , GetProperty ( "_HMG_FormDebugger", "Grid_Calc" , "COL" ) )
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Label_Calc" , "ROW" ) + GetProperty ( "_HMG_FormDebugger", "Label_Calc" , "HEIGHT" ) )
+      SetProperty ( "_HMG_FormDebugger", "TextBox_Calc" , "COL" , GetProperty ( "_HMG_FormDebugger", "Label_Calc" , "COL" ) )
+
+
+      AdjustCtrlInTab( "Grid_Vars", "Tab_1", "_HMG_FormDebugger" )
+
+
+      AdjustCtrlInTab( "Grid_Areas", "Tab_1", "_HMG_FormDebugger" )
+      AdjustCtrlInTab( "Grid_Rec", "Tab_1", "_HMG_FormDebugger" )
+      SetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "HEIGHT" , GetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "HEIGHT" ) / 2 - GetSystemMetrics( 3 ) / 2 )
+      SetProperty ( "_HMG_FormDebugger", "Grid_Rec" , "HEIGHT" , GetProperty ( "_HMG_FormDebugger", "Grid_Rec" , "HEIGHT" )   / 2 - GetSystemMetrics( 3 ) / 2 )
+      SetProperty ( "_HMG_FormDebugger", "Grid_Rec" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "ROW" ) + GetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "HEIGHT" ) + GetSystemMetrics( 3 ) )
+
+
+         AdjustCtrlInTab( "Frame_Config", "Tab_1", "_HMG_FormDebugger" )
+         SetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "ROW" ) + GetSystemMetrics( 3 ) * 1.50 )
+         SetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "COL" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "COL" ) + GetSystemMetrics( 2 )  * 2 )
+         SetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "ROW" ) + GetSystemMetrics( 3 ) * 4.00 )
+         SetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "COL" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "COL" ) + GetSystemMetrics( 2 )  * 2 )
+         SetProperty ( "_HMG_FormDebugger", "CheckBox_Config3" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "ROW" ) + GetSystemMetrics( 3 ) * 6.50 )
+         SetProperty ( "_HMG_FormDebugger", "CheckBox_Config3" , "COL" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "COL" ) + GetSystemMetrics( 2 )  * 2 )
+         SetProperty ( "_HMG_FormDebugger", "Label_Config" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "ROW" ) + GetSystemMetrics( 3 ) * 9.50 )
+         SetProperty ( "_HMG_FormDebugger", "Label_Config" , "COL" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "COL" ) + GetSystemMetrics( 2 )  * 2 )
+         SetProperty ( "_HMG_FormDebugger", "Spinner_Config" , "ROW" , GetProperty ( "_HMG_FormDebugger", "Label_Config" , "ROW" ) )
+         SetProperty ( "_HMG_FormDebugger", "Spinner_Config" , "COL" , GetProperty ( "_HMG_FormDebugger", "Label_Config" , "COL" ) + GetProperty ( "_HMG_FormDebugger", "Label_Config" , "WIDTH" ) + GetSystemMetrics( 2 ) / 2 )
+         SetProperty ( "_HMG_FormDebugger", "Button_Config1" , "ROW" , GetProperty ( "_HMG_FormDebugger", "CheckBox_Config1" , "ROW" ) )
+         SetProperty ( "_HMG_FormDebugger", "Button_Config1" , "COL" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "COL" ) + GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "WIDTH" ) - GetProperty ( "_HMG_FormDebugger", "Button_Config1" , "WIDTH" ) - GetSystemMetrics( 2 ) )
+         SetProperty ( "_HMG_FormDebugger", "Button_Config2" , "ROW" , GetProperty ( "_HMG_FormDebugger", "CheckBox_Config2" , "ROW" ) )
+         SetProperty ( "_HMG_FormDebugger", "Button_Config2" , "COL" , GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "COL" ) + GetProperty ( "_HMG_FormDebugger", "Frame_Config" , "WIDTH" ) - GetProperty ( "_HMG_FormDebugger", "Button_Config2" , "WIDTH" ) - GetSystemMetrics( 2 ) )
+RETURN
+
+
+PROCEDURE AdjustCtrlInTab( cGridName, cTabName, cFormName )
+LOCAL nRow, nCol, nWidth, nHeight
+LOCAL hWndTab      := GetControlHandle( cTabName, cFormName )
+LOCAL nTabWIDTH    := GetProperty( cFormName, cTabName, "WIDTH" )
+LOCAL nTabHEIGHT   := GetProperty( cFormName, cTabName, "HEIGHT" )
+   nCol    := TabCtrl_AdjustRect( hWndTab, .F. )[1] + GetSystemMetrics( 2 )
+   nRow    := TabCtrl_AdjustRect( hWndTab, .F. )[2] + GetSystemMetrics( 3 )
+   nWidth  := TabCtrl_AdjustRect( hWndTab, .F. )[3]*2 + nTabWIDTH  - GetSystemMetrics( 45 ) - GetSystemMetrics( 2 ) * 2
+   nHeight := TabCtrl_AdjustRect( hWndTab, .F. )[4]*2 + nTabHEIGHT - GetSystemMetrics( 46 ) - GetSystemMetrics( 3 ) * 3
+   _SetControlSizePos( cGridName, cFormName, nRow, nCol, nWidth, nHeight )
+RETURN
+
+
+PROCEDURE UpdateGrids
+LOCAL i
+
+   DO CASE
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 8
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "HIDE" )
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 1
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "HIDE" )
+         nComboBoxValue := GetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" )
+         FOR i := 1 TO Len( HMG_Debugger():GetSourceFiles() )
+            IF nComboBoxValue == i
+               DoMethod( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "SHOW" )
+            ELSE
+               DoMethod( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "HIDE" )
+            ENDIF
+         NEXT
+
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 2
+         UpdateGridCallStack()
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "SHOW" )
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 3
+         UpdateGridWatch()
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "SHOW" )
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 4
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "HIDE" )
+         Domethod ( "_HMG_FormDebugger", "TextBox_Calc" , "SETFOCUS" )
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 5
+         UpdateGridVars()
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "SHOW" )
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 6
+         UpdateGridAreas()
+         UpdateGridRec()
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "SHOW" )
+
+      CASE GetProperty ( "_HMG_FormDebugger", "Tab_1" , "VALUE" ) == 7
+         Domethod ( "_HMG_FormDebugger", "Button_Refresh" , "HIDE" )
+
+   ENDCASE
+
+RETURN
+
+
+PROCEDURE UpdateGridCallStack()
+LOCAL i, aProcStack, nValue
+   nValue := GetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "VALUE" )
+   aProcStack := HMG_Debugger():GetProcStack()
+   Domethod ( "_HMG_FormDebugger", "Grid_CallStack" , "DisableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_CallStack" , "DeleteAllItems" )
+   FOR i := 1 TO Len( aProcStack )
+      Domethod ( "_HMG_FormDebugger", "Grid_CallStack" , "AddItem" , aProcStack[ i ] )
+   NEXT
+   Domethod ( "_HMG_FormDebugger", "Grid_CallStack" , "EnableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_CallStack" , "SetFocus" )
+   SetProperty ( "_HMG_FormDebugger", "Grid_CallStack" , "VALUE" , nValue )
+RETURN
+
+
+PROCEDURE UpdateGridVars()
+LOCAL i, aVars, nValue, aBVars
+   aRawVars := {}
+   aVars := HMG_Debugger():GetVars( @aBVars )
+   nValue := GetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "VALUE" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Vars" , "DisableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Vars" , "DeleteAllItems" )
+   FOR i := 1 TO Len( aVars )
+      IF ! "_HMG_" $ aVars[ i ][ 3 ]
+         Domethod ( "_HMG_FormDebugger", "Grid_Vars" , "AddItem" , aVars[ i ] )
+         AAdd( aRawVars, aBVars[ i ] )
+      ENDIF
+      DoEvents()
+   NEXT
+   SetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "ColumnWIDTH" , 2, (-1) )
+   SetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "ColumnWIDTH" , 3, (-1) )
+   SetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "ColumnWIDTH" , 5, (-1) )
+   SetProperty ( "_HMG_FormDebugger", "Grid_Vars" , "VALUE" , nValue )
+   Domethod ( "_HMG_FormDebugger", "Grid_Vars" , "EnableUpdate" )
+
+RETURN
+
+
+PROCEDURE UpdateGridWatch()
+LOCAL i, aWatchInfo
+   Domethod ( "_HMG_FormDebugger", "Grid_Watch" , "DisableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Watch" , "DeleteAllItems" )
+   FOR i := 1 TO HMG_Debugger():WatchCount()
+      aWatchInfo := HMG_Debugger():WatchGetInfo( i )
+      hb_AIns( aWatchInfo, 1, Str( i ), .T. )
+      aWatchInfo[ 6 ] := Iif( aWatchInfo[ 6 ] == ".T.", "Yes", "No")
+      Domethod ( "_HMG_FormDebugger", "Grid_Watch" , "AddItem" , aWatchInfo )
+   NEXT
+   Domethod ( "_HMG_FormDebugger", "Grid_Watch" , "EnableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Watch" , "SetFocus" )
+RETURN
+
+
+PROCEDURE UpdateGridAreas()
+LOCAL i, aAreas := HMG_Debugger():GetAreas()
+   Domethod ( "_HMG_FormDebugger", "Grid_Areas" , "DisableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Areas" , "DeleteAllItems" )
+   FOR i := 1 TO Len( aAreas )
+      Domethod ( "_HMG_FormDebugger", "Grid_Areas" , "AddItem" , aAreas[ i ] )
+   NEXT
+   FOR i := 1 TO GetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "ColumnCOUNT" )
+      SetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "ColumnWIDTH" , i, (-2) )
+   NEXT
+   Domethod ( "_HMG_FormDebugger", "Grid_Areas" , "EnableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Areas" , "SetFocus" )
+RETURN
+
+
+PROCEDURE UpdateGridRec()
+LOCAL i, aRec, cAlias
+   cAlias := GetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "CELL" , GetProperty ( "_HMG_FormDebugger", "Grid_Areas" , "VALUE" ) , 1 )
+   IF "*" $ cAlias
+      cAlias := SubStr( cAlias, 2 )
+   ENDIF
+   aRec := HMG_Debugger():GetRec( cAlias )
+   Domethod ( "_HMG_FormDebugger", "Grid_Rec" , "DisableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Rec" , "DeleteAllItems" )
+   FOR i := 1 TO Len( aRec )
+      Domethod ( "_HMG_FormDebugger", "Grid_Rec" , "AddItem" , aRec[ i ] )
+   NEXT
+   SetProperty ( "_HMG_FormDebugger", "Grid_Rec" , "ColumnWIDTH" , 1, IIF( Len( aRec ) > 0, (-1), (-2) ) )
+   SetProperty ( "_HMG_FormDebugger", "Grid_Rec" , "ColumnWIDTH" , 2, (-2) )
+   SetProperty ( "_HMG_FormDebugger", "Grid_Rec" , "ColumnWIDTH" , 3, (-2) )
+   SetProperty ( "_HMG_FormDebugger", "Grid_Rec" , "ColumnWIDTH" , 4, IIF( Len( aRec ) > 0, (-1), (-2) ) )
+   Domethod ( "_HMG_FormDebugger", "Grid_Rec" , "EnableUpdate" )
+   Domethod ( "_HMG_FormDebugger", "Grid_Rec" , "SetFocus" )
+RETURN
+
+
+FUNCTION LoadPrg( cGrid_SourceCode, cFileName )
+LOCAL i, aLineCode
+   aLineCode := HMG_Debugger():LoadSourceFile( cFileName )
+   DoMethod( "_HMG_FormDebugger", cGrid_SourceCode, "DisableUpdate" )
+   DoMethod( "_HMG_FormDebugger", cGrid_SourceCode, "DeleteAllItems" )
+HMG_DebuggerWaitMessage_SetProgressbar( 1, 1, Len( aLineCode ), .F. )
+   FOR i := 1 TO Len( aLineCode )
+      IF i == 1
+         aLineCode [i] := HMG_UTF8RemoveBOM( aLineCode [i] )
+      ENDIF
+      IF HMG_IsCurrentCodePageUnicode() == .T. .AND. HMG_IsUTF8( aLineCode [i] ) == .F.
+         aLineCode [i] := HMG_ANSI_TO_UNICODE( aLineCode [i], NIL )
+      ELSEIF HMG_IsCurrentCodePageUnicode() == .F. .AND. HMG_IsUTF8( aLineCode [i] ) == .T.
+         aLineCode [i] := hb_UTF8ToStr( aLineCode [i], NIL )
+      ENDIF
+      DoMethod( "_HMG_FormDebugger", cGrid_SourceCode, "AddItem", { Str( i, 6, 0 ), RTrim( aLineCode[ i ] ) } )
+      SetProperty( "_HMG_FormDebugger", cGrid_SourceCode, "ImageIndex", i, 1, -1 )
+HMG_DebuggerWaitMessage_SetProgressbar( i )
+      DoEvents()
+   NEXT
+HMG_DebuggerWaitMessage_SetProgressbar( 1, 1, 100, .T. )
+HMG_DebuggerWaitMessage( "Wait while the debugger is loaded ..." + hb_Eol() + '( DEFINE PAGE "Source" )' )
+   SetProperty( "_HMG_FormDebugger", cGrid_SourceCode, "ColumnWIDTH", 1, (-1) )
+   SetProperty( "_HMG_FormDebugger", cGrid_SourceCode, "ColumnWIDTH", 2, (-1) )
+   DoMethod( "_HMG_FormDebugger", cGrid_SourceCode, "EnableUpdate" )
+   DoMethod( "_HMG_FormDebugger", cGrid_SourceCode, "SetFocus" )
+RETURN Len( aLineCode )
+
+
+
+
+PROCEDURE UpdateInfo()
+
+THREAD STATIC i := 1
+LOCAL nProcLevel := HMG_Debugger():aCurrentLineInfo[ 1 ]
+LOCAL cFileName  := HMG_Debugger():aCurrentLineInfo[ 2 ]
+LOCAL cFuncName  := HMG_Debugger():aCurrentLineInfo[ 3 ]
+LOCAL nLineCode  := HMG_Debugger():aCurrentLineInfo[ 4 ]
+LOCAL cInfo      := HMG_Debugger():aCurrentLineInfo[ 5 ]
+LOCAL lIni := .F.
+
+
+   SetProperty ( "_HMG_FormDebugger", "Label_1" , "FONTCOLOR" , Iif( Empty( cInfo ), {   0 ,   0 ,   0 }, { 255 ,   0 ,   0 } ) )
+   SetProperty ( "_HMG_FormDebugger", "Label_1" , "VALUE" , hb_ValToExp( HMG_Debugger():aCurrentLineInfo ) )
+
+   IF nCurrentLineCode == 0
+      lIni := .T.
+   ENDIF
+
+   aGrid_SourceCode[ i ][ 2 ] := .F.
+   RepaintGridRow ( "_HMG_FormDebugger", aGrid_SourceCode[i][1], nCurrentLineCode )
+   SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "ImageIndex", nCurrentLineCode, 1, -1 )
+
+   i := AScan( HMG_Debugger():GetSourceFiles(), cFileName )
+   SetProperty ( "_HMG_FormDebugger", "ComboBox_SourceCode" , "VALUE" , i )
+   nComboBoxValue := i
+
+
+   nCurrentLineCode := nLineCode
+   ListView_EnsureVisible ( GetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "HANDLE" ), nCurrentLineCode )
+
+   aGrid_SourceCode[ i ][ 2 ] := .T.
+   RepaintGridRow ( "_HMG_FormDebugger", aGrid_SourceCode[i][1], nCurrentLineCode )
+   SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "ImageIndex", nCurrentLineCode, 1, 0 )
+
+   IF lIni == .T.
+      SetProperty( "_HMG_FormDebugger", aGrid_SourceCode[i][1], "VALUE", nCurrentLineCode - 1 )
+   ENDIF
+
+   UpdateGrids()
+
+RETURN
+
+
+
+
+
+
+FUNCTION HMG_ShowEventMonitor()
+
+THREAD STATIC nAlphaBlend := 255
+THREAD STATIC lTop_HMG_FormDebugger := .T.
+LOCAL i, cFormName
+
+
+   FOR i := 1 TO Len( aDebuggerForms )
+      EnableWindow( aDebuggerForms[ i ] )
+   NEXT
+
+
+
+
+
+
+   IF HMG_GetLastVirtualKeyUp() == 77 .AND. HMG_VirtualKeyIsPressed( 18 ) == .T.
+      HMG_CleanLastVirtualKeyUp()
+      iif ( .T., ( HMG_GarbageCall() , EmptyWorkingSet() ), NIL )
+   ENDIF
+
+
+
+
+
+
+
+
+   IF HMG_GetLastVirtualKeyUp() == 0x6B .AND. HMG_VirtualKeyIsPressed( 18 ) == .T.
+      HMG_CleanLastVirtualKeyUp()
+      nAlphaBlend := nAlphaBlend - 50
+      nAlphaBlend := Iif( nAlphaBlend < 50, 50, nAlphaBlend )
+      FOR i := 1 TO Len( aDebuggerForms )
+         GetFormNameByHandle( aDebuggerForms[ i ], @cFormName )
+         SetLayeredWindowAttributes (GetFormHandle(cFormName), 0, nAlphaBlend, 0x02)
+      NEXT
+
+   ELSEIF HMG_GetLastVirtualKeyUp() == 0x6D .AND. HMG_VirtualKeyIsPressed( 18 ) == .T.
+      HMG_CleanLastVirtualKeyUp()
+      nAlphaBlend := nAlphaBlend + 50
+      nAlphaBlend := Iif( nAlphaBlend > 255, 255, nAlphaBlend )
+      FOR i := 1 TO Len( aDebuggerForms )
+         GetFormNameByHandle( aDebuggerForms[ i ], @cFormName )
+         SetLayeredWindowAttributes (GetFormHandle(cFormName), 0, nAlphaBlend, 0x02)
+      NEXT
+   ENDIF
+
+
+
+
+
+
+
+
+
+
+
+   IF HMG_GetLastVirtualKeyUp() == 0x78 .AND. HMG_VirtualKeyIsPressed( 18 ) == .T.
+      HMG_CleanLastVirtualKeyUp()
+      SetForegroundWindow( GetProperty ( "_HMG_FormDebugger" , "HANDLE" ) )
+      lTop_HMG_FormDebugger := HMG_IsWindowStyle ( GetProperty ( "_HMG_FormDebugger" , "HANDLE" ), 8, .T. )
+      lTop_HMG_FormDebugger := !( lTop_HMG_FormDebugger )
+      SetWindowPos( GetProperty ( "_HMG_FormDebugger" , "HANDLE" ), Iif( lTop_HMG_FormDebugger, -1, -2 ), 0, 0, 0, 0, hb_bitOR( 0x0002, 0x0001 ) )
+   ENDIF
+
+
+
+
+
+
+   IF HMG_GetLastVirtualKeyUp() == 68 .AND. HMG_VirtualKeyIsPressed( 18 ) == .T.
+      HMG_CleanLastVirtualKeyUp()
+      IF HMG_Debugger():lDeactivate == .F.
+         HMG_Debugger():Animate()
+         HMG_Debugger():lDeactivate := .T.
+         FOR i := 1 TO Len( aDebuggerForms )
+            HideWindow( aDebuggerForms[ i ] )
+         NEXT
+      ELSE
+         HMG_Debugger():Pause()
+         HMG_Debugger():lDeactivate := .F.
+         UpdateInfo()
+         FOR i := 1 TO Len( aDebuggerForms )
+            ShowWindow( aDebuggerForms[ i ] )
+         NEXT
+      ENDIF
+   ENDIF
+
+RETURN NIL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PROCEDURE HMG_DebuggerWaitMessage(); RETURN
+PROCEDURE HMG_DebuggerWaitMessage_SetProgressbar(); RETURN
