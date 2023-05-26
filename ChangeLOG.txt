@@ -1,0 +1,20 @@
+
+
+2023/03/12 fix hotkey events
+  h_windows.prg
+
+2021/11/12 add StopAllEvent stop all event proceduce windows and controls
+  h_windows.prg
+  Function _DoControlEventProcedure
+     IF _HMG_StopControlEventProcedure [i] == .T. .or. _HGX_StopAllEvent
+  Function _DoWindowEventProcedure
+    IF _HMG_StopWindowEventProcedure [i] == .T. .or. _HGX_StopAllEvent
+    FUNCTION StopAllEvent( lStop )
+2021/11/07 add usereventhandle process code-block and object code
+  h_windows.prg
+2020/08/23 fixed cast warning for mingw10++
+  c_controlmisc.c
+  c_msgbox.c
+  c_winapimisc.c
+  c_richeditbox.c
+**********************
